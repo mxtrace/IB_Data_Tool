@@ -1,0 +1,39 @@
+# IB Data Tool — BC Login 名单
+# 每行一个 login，# 开头为注释
+# 值班/backup 时在启动界面勾选需要处理的人
+
+caoyujie
+cfenshen
+dhhanhen
+duanqin
+flian
+huqyu
+jhongleb
+jiajieq
+jintl
+khuangxi
+kwyingya
+liayueyu
+lijiajud
+liuhuib
+lnhl
+lyozhang
+menjdong
+mlinmei
+mzqing
+nliyan
+oppfatom
+qinbhu
+ruliangi
+shutixva
+tanffei
+wahairon
+wshushen
+xzzhngm
+yangglin
+yanlzhih
+zhanshij
+zhiqzhen
+zhoqlu
+zhqianhu
+zyurensh

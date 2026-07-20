@@ -1,0 +1,31 @@
+# Build artifacts
+build/
+dist/
+*.spec
+
+# Runtime output
+Output/
+Pending list/
+logs/
+debug/
+*.exe
+processed.jsonl
+wal.jsonl
+
+# Generated data files (contain order info)
+AMS_ISF LCL_*.xlsx
+ENS LCL_*.xlsx
+ASI_*.xlsx
+event_list_*.csv
+pending_list.xlsx
+
+# Sensitive config
+config.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Excel temp files
+~$*
