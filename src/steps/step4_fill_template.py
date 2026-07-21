@@ -43,9 +43,6 @@ def fill_template(
         if not asi_file or not Path(asi_file).exists():
             return FillResult(error="ASI 文件路径无效")
         output_file = Path(asi_file)
-        # .xls 旧格式 → 转换为 .xlsx（openpyxl 不支持 .xls）
-        if output_file.suffix.lower() == ".xls":
-            output_file = _convert_xls_to_xlsx(output_file)
     elif template_type == "AMS":
         src = base_dir / "模板" / "AMS_ISF LCL.xlsx"
         output_file = output_dir / f"AMS_ISF LCL_{al0}.xlsx"
@@ -84,37 +81,42 @@ def fill_template(
 
 # ══════════════════════════════════════════════════════════════════════
 
-def _convert_xls_to_xlsx(xls_path: Path) -> Path:
-    """将 .xls 转为 .xlsx（用 xlrd 读 + openpyxl 写）"""
-    import xlrd
-    import openpyxl
-
-    xlsx_path = xls_path.with_suffix(".xlsx")
-    rb = xlrd.open_workbook(str(xls_path))
-    ws_src = rb.sheet_by_index(0)
-
-    wb = openpyxl.Workbook()
-    ws_dst = wb.active
-
-    for row_idx in range(ws_src.nrows):
-        for col_idx in range(ws_src.ncols):
-            val = ws_src.cell_value(row_idx, col_idx)
-            ws_dst.cell(row=row_idx + 1, column=col_idx + 1, value=val)
-
-    wb.save(str(xlsx_path))
-    wb.close()
-    rb.release_resources()
-    return xlsx_path
-
-
 def _write_quantities(file_path: Path, ib_row: dict):
     """Row 23: C=件数, D=CARTON, E=重量(KG), F=体积(CBM)"""
-    with open_workbook_write(file_path) as wb:
-        ws = wb.active
-        ws["C23"] = ib_row.get("received_cartons", 0)
-        ws["D23"] = "CARTON"
-        ws["E23"] = ib_row.get("received_weight", 0)
-        ws["F23"] = ib_row.get("received_volume", 0)
+    if file_path.suffix.lower() == ".xls":
+        _write_quantities_com(file_path, ib_row)
+    else:
+        with open_workbook_write(file_path) as wb:
+            ws = wb.active
+            ws["C23"] = ib_row.get("received_cartons", 0)
+            ws["D23"] = "CARTON"
+            ws["E23"] = ib_row.get("received_weight", 0)
+            ws["F23"] = ib_row.get("received_volume", 0)
+
+
+def _write_quantities_com(file_path: Path, ib_row: dict):
+    """用 Excel COM 写入 .xls 文件（保留原始格式）"""
+    import win32com.client
+    import pythoncom
+
+    pythoncom.CoInitialize()
+    try:
+        excel = win32com.client.Dispatch("Excel.Application")
+        excel.Visible = False
+        excel.DisplayAlerts = False
+        wb = excel.Workbooks.Open(str(file_path.resolve()))
+        ws = wb.Sheets(1)
+
+        ws.Range("C23").Value = ib_row.get("received_cartons", 0)
+        ws.Range("D23").Value = "CARTON"
+        ws.Range("E23").Value = ib_row.get("received_weight", 0)
+        ws.Range("F23").Value = ib_row.get("received_volume", 0)
+
+        wb.Save()
+        wb.Close(False)
+        excel.Quit()
+    finally:
+        pythoncom.CoUninitialize()
 
 
 def _write_parties(file_path: Path, ttype: str, iz: InputZoneData, fc: dict):
