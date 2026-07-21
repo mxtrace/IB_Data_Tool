@@ -150,7 +150,7 @@ def _build_cc(al0: str, ib_row: dict, config: AppConfig, base_dir: Path) -> str:
         notes.append("分批进仓")
 
     if notes:
-        return f"{cc_email} {'/'.join(notes)}"
+        return f"{cc_email}; {'/'.join(notes)}"
     return cc_email
 
 

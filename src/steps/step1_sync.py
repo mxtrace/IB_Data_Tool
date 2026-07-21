@@ -49,7 +49,7 @@ def sync_to_pending_list(config: AppConfig, base_dir: Path) -> dict:
     if not shared_path.exists():
         raise RuntimeError(f"无法访问共享盘：{shared_path}")
 
-    xlsx_files = sorted(shared_path.glob("*.xlsx"), key=lambda f: f.stat().st_mtime, reverse=True)
+    xlsx_files = sorted([f for f in shared_path.glob("*.xlsx") if not f.name.startswith("~$")], key=lambda f: f.stat().st_mtime, reverse=True)
     if not xlsx_files:
         raise RuntimeError("共享盘目录下未找到进仓数据文件")
 
@@ -75,17 +75,16 @@ def sync_to_pending_list(config: AppConfig, base_dir: Path) -> dict:
 
     log_info(f"Step1: 共享盘 {len(rows)} 行，过滤后 {len(filtered)} 行")
 
-    # 1.3 去重：排除已在 Pending List 或 history 中的 AL0
+    # 1.3 去重：仅排除 Pending List 中尚未处理的（check列为空）
+    # 已处理的订单若再次出现在共享盘中，允许重新追加（业务需要全量发送）
     if filtered:
         pl_path = _get_pending_list_path(base_dir, config)
-        existing_al0s = _load_existing_al0s(pl_path)
-        history_al0s = _load_history(base_dir)
-        all_known = existing_al0s | history_al0s
+        pending_al0s = _load_pending_al0s(pl_path)  # 仅未处理的
 
-        deduped = [r for r in filtered if str(r[COL["booking_id"]] or "").strip() not in all_known]
+        deduped = [r for r in filtered if str(r[COL["booking_id"]] or "").strip() not in pending_al0s]
         skipped = len(filtered) - len(deduped)
         if skipped:
-            log_info(f"Step1: 去重跳过 {skipped} 行（已存在）")
+            log_info(f"Step1: 去重跳过 {skipped} 行（当前批次中已存在）")
         filtered = deduped
 
     # 1.4 追加到 Pending List
@@ -208,6 +207,24 @@ def _load_existing_al0s(pl_path: Path) -> set:
             for row in ws.iter_rows(min_row=2, values_only=True):
                 al0 = str(row[0] or "").strip()
                 if al0:
+                    al0s.add(al0)
+            return al0s
+    except Exception:
+        return set()
+
+
+def _load_pending_al0s(pl_path: Path) -> set:
+    """从 Pending List 中提取尚未处理的 AL0（check列为空）"""
+    if not pl_path.exists():
+        return set()
+    try:
+        with open_workbook(pl_path, read_only=True, data_only=True) as wb:
+            ws = wb.active
+            al0s = set()
+            for row in ws.iter_rows(min_row=2, values_only=True):
+                al0 = str(row[0] or "").strip()
+                check = str(row[COL["check"]] or "").strip() if len(row) > COL["check"] else ""
+                if al0 and not check:
                     al0s.add(al0)
             return al0s
     except Exception:
