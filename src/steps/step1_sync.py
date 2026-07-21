@@ -1,10 +1,8 @@
-﻿"""
+"""
 step1_sync.py — 读取进仓数据 → 同步到 Pending List → 取批次
 """
 from __future__ import annotations
 
-import shutil
-import tempfile
 from pathlib import Path
 
 import openpyxl
@@ -42,27 +40,29 @@ HEADERS = [
 
 def sync_to_pending_list(config: AppConfig, base_dir: Path) -> dict:
     """
-    Step 1.1~1.3: 读共享盘 → 过滤 → 追加到 Pending List
+    Step 1.1~1.3: 读本地 PendingList → 过滤 → 追加到工具 Pending List
+    数据源：Desktop/Mars_LCL_Package/BookingFilePack/BCFile/PendingList/
     """
-    # 1.1 定位共享盘最新文件
-    shared_path = Path(config.shared_drive_path)
-    if not shared_path.exists():
-        raise RuntimeError(f"无法访问共享盘：{shared_path}")
+    import os
 
-    xlsx_files = sorted([f for f in shared_path.glob("*.xlsx") if not f.name.startswith("~$")], key=lambda f: f.stat().st_mtime, reverse=True)
+    # 1.1 定位本地 PendingList 目录（最新 .xlsx）
+    username = os.environ.get("USERNAME", "")
+    pending_src_dir = Path("C:/Users") / username / "Desktop" / "Mars_LCL_Package" / "BookingFilePack" / "BCFile" / "PendingList"
+    if not pending_src_dir.exists():
+        raise RuntimeError(f"PendingList 目录不存在：{pending_src_dir}")
+
+    xlsx_files = sorted(
+        [f for f in pending_src_dir.glob("*.xlsx") if not f.name.startswith("~$")],
+        key=lambda f: f.stat().st_mtime, reverse=True,
+    )
     if not xlsx_files:
-        raise RuntimeError("共享盘目录下未找到进仓数据文件")
+        raise RuntimeError(f"PendingList 目录下未找到 .xlsx 文件：{pending_src_dir}")
 
     source_file = xlsx_files[0]
-    log_info(f"Step1: 读取共享盘文件 {source_file.name}")
+    log_info(f"Step1: 读取本地 PendingList {source_file.name}")
 
-    # 安全读取：先复制到本地临时目录，避免共享盘锁冲突
-    tmp_dir = Path(tempfile.mkdtemp())
-    local_copy = tmp_dir / source_file.name
-    shutil.copy2(source_file, local_copy)
-
-    # 1.2 读取 + 过滤
-    with open_workbook(local_copy, read_only=True, data_only=True) as wb:
+    # 1.2 读取 + 过滤（按 bc_login）
+    with open_workbook(source_file, read_only=True, data_only=True) as wb:
         ws = wb.active
         rows = list(ws.iter_rows(min_row=2, values_only=True))
 
@@ -73,13 +73,12 @@ def sync_to_pending_list(config: AppConfig, base_dir: Path) -> dict:
         if bc_val in selected_set:
             filtered.append(row)
 
-    log_info(f"Step1: 共享盘 {len(rows)} 行，过滤后 {len(filtered)} 行")
+    log_info(f"Step1: PendingList {len(rows)} 行，过滤后 {len(filtered)} 行")
 
-    # 1.3 去重：仅排除 Pending List 中尚未处理的（check列为空）
-    # 已处理的订单若再次出现在共享盘中，允许重新追加（业务需要全量发送）
+    # 1.3 去重：仅排除工具 Pending List 中尚未处理的（check列为空）
+    pl_path = _get_pending_list_path(base_dir, config)
     if filtered:
-        pl_path = _get_pending_list_path(base_dir, config)
-        pending_al0s = _load_pending_al0s(pl_path)  # 仅未处理的
+        pending_al0s = _load_pending_al0s(pl_path)
 
         deduped = [r for r in filtered if str(r[COL["booking_id"]] or "").strip() not in pending_al0s]
         skipped = len(filtered) - len(deduped)
@@ -87,16 +86,9 @@ def sync_to_pending_list(config: AppConfig, base_dir: Path) -> dict:
             log_info(f"Step1: 去重跳过 {skipped} 行（当前批次中已存在）")
         filtered = deduped
 
-    # 1.4 追加到 Pending List
+    # 1.4 追加到工具 Pending List
     if filtered:
         _append_to_pending_list(pl_path, filtered)
-
-    # 清理临时文件
-    try:
-        local_copy.unlink()
-        tmp_dir.rmdir()
-    except Exception:
-        pass
 
     return {"source": str(source_file), "appended": len(filtered)}
 
