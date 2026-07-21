@@ -19,6 +19,7 @@ from core.wal import append_wal, recover_pending_list_from_wal, clear_wal
 from core.batch_controller import BatchController, TicketResult
 from core.browser_manager import BrowserManager
 from steps.step1_sync import sync_to_pending_list, load_batch, append_to_history
+from core.oc_api_client import build_session, check_session_valid
 from steps.step2_oc_scrape import scrape_booking_summary
 from steps.step3_template_select import select_template
 from steps.step4_fill_template import fill_template
@@ -79,17 +80,21 @@ def main():
         return
 
     # ═══════════════════════════════════════════════════════════════
-    # 启动浏览器
+    # 建立 OC API Session（替代浏览器抓取，仅 CDA 订单才启动浏览器）
     # ═══════════════════════════════════════════════════════════════
-    browser = BrowserManager()
     try:
-        browser.start()
-        browser.warmup()  # 自动导航到 OC 首页，确保登录态
-        log_info("浏览器已启动")
+        oc_session = build_session()
+        if not check_session_valid(oc_session):
+            show_blocker("OC Cookie 已过期，请先在 Firefox 登录 trans-logistics-cn.amazon.com 后重试")
+            return
+        log_info("OC API Session 已建立")
     except Exception as e:
-        log_error(f"浏览器启动失败：{e}")
-        show_blocker(f"浏览器启动失败：{e}")
+        log_error(f"OC Session 建立失败：{e}")
+        show_blocker(f"OC Session 建立失败：{e}")
         return
+
+    # 浏览器仅 CDA 订单 ASI 下载时按需启动
+    browser = None
 
     # ═══════════════════════════════════════════════════════════════
     # 批次循环
@@ -111,7 +116,7 @@ def main():
             # Per-AL0 循环
             for idx, al0 in enumerate(batch.al0_list):
                 batch_ctrl.update_progress(idx, al0)
-                result = process_single_al0(al0, batch, config, BASE_DIR, browser, batch_ctrl)
+                result = process_single_al0(al0, batch, config, BASE_DIR, oc_session, browser, batch_ctrl)
                 batch_ctrl.record_result(result)
 
                 # 🟡 跳过时弹窗提示 BC 确认
@@ -142,13 +147,12 @@ def main():
             if action == "finish":
                 break
 
-            # 批次间重置：下一批首单强制完整导航（防 SPA 页面过期）
-            browser._oc_warmed = False
-            browser._devtools_open = False
+            # 批次间无需重置（API 模式无浏览器状态）
 
     finally:
-        browser.close()
-        log_info("浏览器已关闭")
+        if browser:
+            browser.close()
+            log_info("浏览器已关闭")
 
     # ═══════════════════════════════════════════════════════════════
     # Step 6: 打卡
@@ -161,7 +165,7 @@ def main():
     log_info("IB Data Tool 运行完毕")
 
 
-def process_single_al0(al0, batch, config, base_dir, browser, batch_ctrl) -> TicketResult:
+def process_single_al0(al0, batch, config, base_dir, oc_session, browser, batch_ctrl) -> TicketResult:
     """单票 AL0 的完整处理流程（Step 2~5）"""
     ib_row = batch.get_row(al0)
     bc_login = ib_row.get("bc_login", "") if ib_row else ""
@@ -169,7 +173,7 @@ def process_single_al0(al0, batch, config, base_dir, browser, batch_ctrl) -> Tic
         return TicketResult(al0, "skipped", "Pending List 中无此 AL0 数据")
 
     # ── Step 2: OC 抓取 + 类型判断 ──
-    scrape_result = scrape_booking_summary(al0, browser)
+    scrape_result = scrape_booking_summary(al0, oc_session)
     if scrape_result.error:
         audit(al0, "step2", "skipped", scrape_result.error)
         return TicketResult(al0, "skipped", scrape_result.error, bc_login=bc_login)
@@ -191,8 +195,13 @@ def process_single_al0(al0, batch, config, base_dir, browser, batch_ctrl) -> Tic
         audit(al0, "step2", "odm", "")
         return TicketResult(al0, "odm", "", bc_login=bc_login)
 
-    # CDA → 下载ASI
+    # CDA → 下载ASI（按需启动浏览器）
     if input_zone.cda_booking:
+        if browser is None:
+            from core.browser_manager import BrowserManager as BM
+            browser = BM()
+            browser.start()
+            browser.warmup()
         asi_path = scrape_result.download_asi(browser, base_dir)
         if not asi_path:
             audit(al0, "step2", "skipped", "ASI下载失败")

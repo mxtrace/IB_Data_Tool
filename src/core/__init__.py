@@ -1,2 +1,2 @@
 """IB Data Tool Core"""
-__version__ = "1.1.0"  # pyautogui + Firefox keyboard automation
+__version__ = "2.0.0"  # REST API direct fetch (replaces pyautogui browser scraping)

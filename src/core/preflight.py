@@ -15,10 +15,8 @@ def run_preflight(base_dir: Path, config: AppConfig) -> list[str]:
 
     # 1. 依赖库检查
     required_modules = [
-        ("pyautogui", "pyautogui"),
+        ("requests", "requests"),
         ("win32com.client", "pywin32"),
-        ("win32gui", "pywin32"),
-        ("win32clipboard", "pywin32"),
         ("openpyxl", "openpyxl"),
     ]
     for mod_name, pkg_name in required_modules:
