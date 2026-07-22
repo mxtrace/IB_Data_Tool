@@ -26,6 +26,7 @@ COL = {
     "received_weight": 15,
     "container_count_by_dimension": 18,
     "check": 19,
+    "ib_count": 21,
 }
 
 HEADERS = [
@@ -158,6 +159,9 @@ def write_back_results(batch: BatchData, results: list[TicketResult], base_dir: 
                 continue
             if r.status == "success":
                 ws.cell(row=row_idx, column=COL["check"] + 1, value="Yes")
+                # V列：处理次数自增
+                cur = ws.cell(row=row_idx, column=COL["ib_count"] + 1).value
+                ws.cell(row=row_idx, column=COL["ib_count"] + 1, value=(int(cur) if cur else 0) + 1)
             elif r.status == "odm":
                 ws.cell(row=row_idx, column=COL["container_count_by_dimension"] + 1, value="ODM")
                 ws.cell(row=row_idx, column=COL["check"] + 1, value="Yes")
@@ -180,6 +184,8 @@ def write_single_ticket(base_dir: Path, al0: str, status: str):
             if cell_al0 == al0 and not cell_check:
                 if status == "success":
                     ws.cell(row=row_idx, column=COL["check"] + 1, value="Yes")
+                    cur = ws.cell(row=row_idx, column=COL["ib_count"] + 1).value
+                    ws.cell(row=row_idx, column=COL["ib_count"] + 1, value=(int(cur) if cur else 0) + 1)
                 elif status == "odm":
                     ws.cell(row=row_idx, column=COL["container_count_by_dimension"] + 1, value="ODM")
                     ws.cell(row=row_idx, column=COL["check"] + 1, value="Yes")
