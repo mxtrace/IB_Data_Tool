@@ -18,31 +18,43 @@ def check_outlook_running() -> bool:
 
 
 def list_outlook_stores() -> list[str]:
-    """枚举 Outlook 中所有已配置的邮箱账号（Stores + Accounts 去重）"""
+    """枚举 Outlook 中所有已配置的邮箱账号（Stores + Accounts + Folders 三级探测）"""
+    import win32com.client
+    names = []
     try:
-        import win32com.client
         outlook = win32com.client.Dispatch("Outlook.Application")
         mapi = outlook.GetNamespace("MAPI")
-        names = []
-        # 优先 Stores
-        try:
-            for i in range(1, mapi.Stores.Count + 1):
-                store = mapi.Stores.Item(i)
-                names.append(store.DisplayName)
-        except Exception:
-            pass
-        # Accounts 补充（去重）
-        try:
-            for i in range(1, mapi.Accounts.Count + 1):
-                acc = mapi.Accounts.Item(i)
-                display = acc.SmtpAddress or acc.DisplayName
-                if display and display not in names:
-                    names.append(display)
-        except Exception:
-            pass
-        return names
     except Exception:
-        return []
+        return names
+
+    # 方式1: Stores
+    try:
+        for i in range(1, mapi.Stores.Count + 1):
+            store = mapi.Stores.Item(i)
+            names.append(store.DisplayName)
+    except Exception:
+        pass
+
+    # 方式2: Accounts 补充
+    try:
+        for i in range(1, mapi.Accounts.Count + 1):
+            acc = mapi.Accounts.Item(i)
+            display = acc.SmtpAddress or acc.DisplayName
+            if display and display not in names:
+                names.append(display)
+    except Exception:
+        pass
+
+    # 方式3: Root Folders 补充（订阅邮箱可能只在这里出现）
+    try:
+        for i in range(1, mapi.Folders.Count + 1):
+            folder = mapi.Folders.Item(i)
+            if folder.Name and folder.Name not in names:
+                names.append(folder.Name)
+    except Exception:
+        pass
+
+    return names
 
 
 def search_al0_email(al0: str, store_names: list[str] | None = None) -> dict | None:
