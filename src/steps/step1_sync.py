@@ -100,13 +100,26 @@ def sync_to_pending_list(config: AppConfig, base_dir: Path) -> dict:
 
 def load_batch(config: AppConfig, base_dir: Path) -> BatchData:
     """
-    Step 1.4: 从 Pending List 取 T列=空 的前 batch_size 条
+    直接从源 PendingList 读取：T列=空 + bc_login匹配 的前 batch_size 条
     """
-    pl_path = _get_pending_list_path(base_dir, config)
-    if not pl_path.exists():
+    import os
+    username = os.environ.get("USERNAME", "")
+    pending_src_dir = Path("C:/Users") / username / "Desktop" / "Mars_LCL_Package" / "BookingFilePack" / "BCFile" / "PendingList"
+
+    if not pending_src_dir.exists():
         return BatchData(al0_list=[], rows={}, row_indices={})
 
-    with open_workbook(pl_path, read_only=False, data_only=True) as wb:
+    xlsx_files = sorted(
+        [f for f in pending_src_dir.glob("*.xlsx") if not f.name.startswith("~$")],
+        key=lambda f: f.stat().st_mtime, reverse=True,
+    )
+    if not xlsx_files:
+        return BatchData(al0_list=[], rows={}, row_indices={})
+
+    source_file = xlsx_files[0]
+    selected_set = {login.lower().strip() for login in config.selected_logins}
+
+    with open_workbook(source_file, read_only=False, data_only=True) as wb:
         ws = wb.active
 
         al0_list = []
@@ -119,10 +132,15 @@ def load_batch(config: AppConfig, base_dir: Path) -> BatchData:
             check_val = values[COL["check"]] if len(values) > COL["check"] else None
 
             if check_val and str(check_val).strip():
-                continue  # 已处理
+                continue  # T列有值 = 已处理
 
             al0 = str(values[COL["booking_id"]] or "").strip()
             if not al0:
+                continue
+
+            # 过滤 bc_login
+            bc_val = str(values[COL["bc"]] or "").strip().lower()
+            if bc_val not in selected_set:
                 continue
 
             total_pending += 1
@@ -145,17 +163,17 @@ def load_batch(config: AppConfig, base_dir: Path) -> BatchData:
                 "received_weight": _to_float(values[15]),
             }
 
-    return BatchData(al0_list=al0_list, rows=rows_dict, row_indices=row_indices, total_pending=total_pending)
+    return BatchData(al0_list=al0_list, rows=rows_dict, row_indices=row_indices,
+                     total_pending=total_pending, source_file=source_file)
 
 
 def write_back_results(batch: BatchData, results: list[TicketResult], base_dir: Path):
-    """批次完成后统一回写 Pending List（由 WAL 保障不重复）"""
-    from core.config import AppConfig
-    pl_path = _find_pending_list_file(base_dir)
-    if not pl_path:
+    """批次完成后统一回写源 PendingList（由 WAL 保障不重复）"""
+    pl_path = batch.source_file if batch.source_file else _find_source_pending_list()
+    if not pl_path or not Path(str(pl_path)).exists():
         return
 
-    with open_workbook_write(pl_path) as wb:
+    with open_workbook_write(Path(str(pl_path))) as wb:
         ws = wb.active
         for r in results:
             row_idx = batch.row_indices.get(r.al0)
@@ -173,10 +191,9 @@ def write_back_results(batch: BatchData, results: list[TicketResult], base_dir: 
 
 def write_single_ticket(base_dir: Path, al0: str, status: str):
     """
-    WAL 恢复用：单票回写。
-    扫描 Pending List 找到 al0 对应行，写入状态。
+    WAL 恢复用：单票回写源 PendingList。
     """
-    pl_path = _find_pending_list_file(base_dir)
+    pl_path = _find_source_pending_list()
     if not pl_path:
         return
 
@@ -262,6 +279,20 @@ def append_to_history(base_dir: Path, al0: str, status: str):
 
 
 # ── 内部辅助 ──
+
+
+def _find_source_pending_list() -> Path | None:
+    """定位源 PendingList 文件"""
+    import os
+    username = os.environ.get("USERNAME", "")
+    pending_src_dir = Path("C:/Users") / username / "Desktop" / "Mars_LCL_Package" / "BookingFilePack" / "BCFile" / "PendingList"
+    if not pending_src_dir.exists():
+        return None
+    xlsx_files = sorted(
+        [f for f in pending_src_dir.glob("*.xlsx") if not f.name.startswith("~$")],
+        key=lambda f: f.stat().st_mtime, reverse=True,
+    )
+    return xlsx_files[0] if xlsx_files else None
 
 def _get_pending_list_path(base_dir: Path, config: AppConfig) -> Path:
     pl_dir = base_dir / config.pending_list_dir

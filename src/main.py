@@ -18,7 +18,7 @@ from core.preflight import run_preflight
 from core.wal import append_wal, recover_pending_list_from_wal, clear_wal
 from core.batch_controller import BatchController, TicketResult
 from core.browser_manager import BrowserManager
-from steps.step1_sync import sync_to_pending_list, load_batch, append_to_history
+from steps.step1_sync import load_batch, append_to_history
 from core.oc_api_client import build_session, check_session_valid
 from steps.step2_oc_scrape import scrape_booking_summary
 from steps.step3_template_select import select_template
@@ -69,15 +69,9 @@ def main():
     recover_pending_list_from_wal(BASE_DIR)
 
     # ═══════════════════════════════════════════════════════════════
-    # Step 1: 读取进仓数据 → 同步到 Pending List
+    # Step 1: 直接从源 PendingList 读取（load_batch 内完成）
     # ═══════════════════════════════════════════════════════════════
-    try:
-        sync_result = sync_to_pending_list(config, BASE_DIR)
-        log_info(f"Step1 完成：来源={sync_result['source']}，追加={sync_result['appended']}行")
-    except Exception as e:
-        log_error(f"Step1 失败：{e}")
-        show_blocker(f"Step 1 数据同步失败：{e}")
-        return
+    log_info("Step1: 将直接从源 PendingList 读取数据")
 
     # ═══════════════════════════════════════════════════════════════
     # 建立 OC API Session（替代浏览器抓取，仅 CDA 订单才启动浏览器）

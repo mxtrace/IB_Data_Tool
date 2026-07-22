@@ -23,6 +23,7 @@ class BatchData:
     rows: dict  # {al0: {field: value}}  Pending List 行数据
     row_indices: dict  # {al0: excel_row_number}  用于回写
     total_pending: int = 0  # Pending List 中总待处理数
+    source_file: object = None  # Path to source file for write-back
 
     def get_row(self, al0: str) -> dict:
         return self.rows.get(al0, {})
