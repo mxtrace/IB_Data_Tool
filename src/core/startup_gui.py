@@ -142,7 +142,7 @@ def show_startup_dialog(config_path: Path) -> dict | None:
     ttk.Button(frame_login_mgmt, text="+ 添加", command=_add_login, width=8).pack(side="left", padx=(0, 5))
     ttk.Button(frame_login_mgmt, text="- 删除选中", command=_del_login, width=10).pack(side="left")
 
-    # ── 搜索邮箱选择（滚动区域，固定高度） ──
+    # ── 搜索邮箱选择 ──
     frame_stores = ttk.LabelFrame(root, text="搜索邮箱（用于提取收件人）", padding=8)
     frame_stores.pack(fill="x", padx=12, pady=5)
 
@@ -151,19 +151,10 @@ def show_startup_dialog(config_path: Path) -> dict | None:
     prev_stores = set(defaults.get("search_stores", []))
     store_vars = {}
     if available_stores:
-        store_canvas = tk.Canvas(frame_stores, highlightthickness=0, height=60)
-        store_scrollbar = ttk.Scrollbar(frame_stores, orient="vertical", command=store_canvas.yview)
-        store_inner = ttk.Frame(store_canvas)
-        store_inner.bind("<Configure>", lambda e: store_canvas.configure(scrollregion=store_canvas.bbox("all")))
-        store_canvas.create_window((0, 0), window=store_inner, anchor="nw")
-        store_canvas.configure(yscrollcommand=store_scrollbar.set)
-        store_canvas.pack(side="left", fill="x", expand=True)
-        store_scrollbar.pack(side="right", fill="y")
-
         for store_name in available_stores:
             var = tk.BooleanVar(value=(store_name in prev_stores) if prev_stores else True)
             store_vars[store_name] = var
-            ttk.Checkbutton(store_inner, text=store_name, variable=var).pack(anchor="w", pady=1)
+            ttk.Checkbutton(frame_stores, text=store_name, variable=var).pack(anchor="w", pady=1)
     else:
         ttk.Label(frame_stores, text="（未检测到邮箱账号）", foreground="gray").pack(anchor="w")
 
