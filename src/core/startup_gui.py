@@ -38,12 +38,12 @@ def show_startup_dialog(config_path: Path) -> dict | None:
     # ── 窗口 ──
     root = tk.Tk()
     root.title("IB Data Tool")
-    root.geometry("440x540")
+    root.geometry("440x600")
     root.resizable(False, False)
 
     root.update_idletasks()
     x = (root.winfo_screenwidth() - 440) // 2
-    y = (root.winfo_screenheight() - 540) // 2
+    y = (root.winfo_screenheight() - 600) // 2
     root.geometry(f"+{x}+{y}")
 
     # ── Actor 显示 ──
@@ -74,7 +74,7 @@ def show_startup_dialog(config_path: Path) -> dict | None:
     frame_custom = ttk.LabelFrame(root, text="自定义选择（仅 custom 模式生效）", padding=8)
     frame_custom.pack(fill="both", expand=True, padx=12, pady=5)
 
-    canvas = tk.Canvas(frame_custom, highlightthickness=0, height=180)
+    canvas = tk.Canvas(frame_custom, highlightthickness=0, height=100)
     scrollbar = ttk.Scrollbar(frame_custom, orient="vertical", command=canvas.yview)
     inner_frame = ttk.Frame(canvas)
     inner_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
