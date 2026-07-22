@@ -1,4 +1,4 @@
-﻿"""
+"""
 preflight.py — 启动前全面自检
 检查依赖库、Firefox、文件完整性、共享盘、权限、Outlook。
 """
@@ -40,7 +40,6 @@ def run_preflight(base_dir: Path, config: AppConfig) -> list[str]:
     file_checks = {
         "FC_Address 表": base_dir / config.fc_address_file,
         "Seller request list": base_dir / config.seller_request_file,
-        "Loading 表": base_dir / config.loading_file,
         "AMS 模板": base_dir / config.template_dir / "AMS_ISF LCL.xlsx",
         "ENS 模板": base_dir / config.template_dir / "ENS LCL.xlsx",
     }

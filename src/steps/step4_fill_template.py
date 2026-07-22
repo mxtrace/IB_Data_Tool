@@ -97,13 +97,11 @@ def _write_quantities(file_path: Path, ib_row: dict):
 def _write_quantities_com(file_path: Path, ib_row: dict):
     """用 Excel COM 写入 .xls 文件（保留原始格式）"""
     import win32com.client
-    import pythoncom
 
-    pythoncom.CoInitialize()
+    excel = win32com.client.Dispatch("Excel.Application")
+    excel.Visible = False
+    excel.DisplayAlerts = False
     try:
-        excel = win32com.client.Dispatch("Excel.Application")
-        excel.Visible = False
-        excel.DisplayAlerts = False
         wb = excel.Workbooks.Open(str(file_path.resolve()))
         ws = wb.Sheets(1)
 
@@ -114,9 +112,8 @@ def _write_quantities_com(file_path: Path, ib_row: dict):
 
         wb.Save()
         wb.Close(False)
-        excel.Quit()
     finally:
-        pythoncom.CoUninitialize()
+        excel.Quit()
 
 
 def _write_parties(file_path: Path, ttype: str, iz: InputZoneData, fc: dict):
