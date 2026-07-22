@@ -1,6 +1,6 @@
 """
 outlook_helper.py — Outlook COM 操作
-搜索"进仓通知"邮件 + Reply + 新建邮件 + Display。
+搜索邮件提取收件人 + 新建邮件 Display。
 """
 from __future__ import annotations
 
@@ -17,18 +17,51 @@ def check_outlook_running() -> bool:
         return False
 
 
-def search_inbound_notification(al0: str) -> dict | None:
+def list_outlook_stores() -> list[str]:
+    """枚举 Outlook 中所有已配置的邮箱账号名称"""
+    try:
+        import win32com.client
+        outlook = win32com.client.Dispatch("Outlook.Application")
+        mapi = outlook.GetNamespace("MAPI")
+        stores = []
+        for i in range(1, mapi.Stores.Count + 1):
+            store = mapi.Stores.Item(i)
+            stores.append(store.DisplayName)
+        return stores
+    except Exception:
+        return []
+
+
+def search_al0_email(al0: str, store_names: list[str] | None = None) -> dict | None:
     """
-    搜索 Outlook 全部文件夹：主题含 al0 AND 含 "进仓通知"。
-    返回最新匹配的邮件对象包装，或 None。
+    在指定 Store 中搜索主题含 AL0 的最新一封邮件。
+    返回提取的非 amazon.com 邮箱列表，或 None。
+
+    返回格式：
+    {
+        "emails": ["addr1", "addr2", ...],
+        "subject": "原邮件主题",
+    }
     """
     import win32com.client
     outlook = win32com.client.Dispatch("Outlook.Application")
     mapi = outlook.GetNamespace("MAPI")
 
-    # 遍历所有 Store 的所有文件夹
+    # 确定搜索范围
+    target_stores = []
+    if store_names:
+        for i in range(1, mapi.Stores.Count + 1):
+            store = mapi.Stores.Item(i)
+            if store.DisplayName in store_names:
+                target_stores.append(store)
+    else:
+        # 未指定则搜索全部
+        for i in range(1, mapi.Stores.Count + 1):
+            target_stores.append(mapi.Stores.Item(i))
+
+    # 搜索
     found_items = []
-    for store in mapi.Stores:
+    for store in target_stores:
         try:
             _search_folder_recursive(store.GetRootFolder(), al0, found_items)
         except Exception:
@@ -41,42 +74,29 @@ def search_inbound_notification(al0: str) -> dict | None:
     found_items.sort(key=lambda x: x.SentOn, reverse=True)
     mail = found_items[0]
 
-    # 提取收件人（去除 @amazon.com）
-    recipients = []
+    # 提取邮箱：Recipients(To+CC) 中非 amazon
+    emails = []
     for i in range(1, mail.Recipients.Count + 1):
-        addr = mail.Recipients.Item(i).Address or ""
+        recip = mail.Recipients.Item(i)
+        addr = _resolve_smtp_address(recip)
         if addr and not _is_amazon_email(addr):
-            recipients.append(addr)
-    # 去重
-    recipients = list(dict.fromkeys(recipients))
+            emails.append(addr)
+
+    # 发件人非 amazon 也追加
+    sender_addr = _resolve_sender_address(mail)
+    if sender_addr and not _is_amazon_email(sender_addr):
+        emails.append(sender_addr)
+
+    # 去重（保持顺序）
+    emails = list(dict.fromkeys(emails))
+
+    if not emails:
+        return None
 
     return {
-        "mail_item": mail,
-        "recipients": recipients,
+        "emails": emails,
         "subject": mail.Subject or "",
     }
-
-
-def display_reply_mail(
-    original_mail_info: dict,
-    subject: str,
-    html_body: str,
-    cc: str,
-    attachment_path: str,
-) -> dict:
-    """在原邮件上 Reply，修改主题/正文/CC/附件，Display弹出"""
-    try:
-        mail = original_mail_info["mail_item"].Reply()
-        mail.Subject = subject
-        mail.To = ";".join(original_mail_info["recipients"])
-        mail.HTMLBody = html_body
-        mail.CC = cc
-        if attachment_path and Path(attachment_path).exists():
-            mail.Attachments.Add(str(Path(attachment_path).resolve()))
-        mail.Display()
-        return {"success": True}
-    except Exception as e:
-        return {"success": False, "error": str(e)}
 
 
 def display_new_mail(
@@ -106,13 +126,11 @@ def display_new_mail(
 # ── 内部辅助 ──
 
 def _search_folder_recursive(folder, al0: str, results: list):
-    """递归搜索文件夹"""
+    """递归搜索文件夹：主题含 AL0 单号"""
     try:
         items = folder.Items
-        # Restrict 条件：主题含 al0 且含 "进仓通知"
         filter_str = (
-            f"@SQL=\"urn:schemas:httpmail:subject\" LIKE '%{al0}%' "
-            f"AND \"urn:schemas:httpmail:subject\" LIKE '%进仓通知%'"
+            '@SQL="urn:schemas:httpmail:subject" LIKE \'%' + al0 + '%\''
         )
         filtered = items.Restrict(filter_str)
         for item in filtered:
@@ -120,7 +138,6 @@ def _search_folder_recursive(folder, al0: str, results: list):
     except Exception:
         pass
 
-    # 递归子文件夹
     try:
         for i in range(1, folder.Folders.Count + 1):
             _search_folder_recursive(folder.Folders.Item(i), al0, results)
@@ -128,6 +145,53 @@ def _search_folder_recursive(folder, al0: str, results: list):
         pass
 
 
+def _resolve_smtp_address(recipient) -> str:
+    """从 Recipient 对象解析 SMTP 邮箱地址"""
+    try:
+        # 优先尝试 PropertyAccessor 取 SMTP
+        PR_SMTP = "http://schemas.microsoft.com/mapi/proptag/0x39FE001E"
+        addr = recipient.PropertyAccessor.GetProperty(PR_SMTP)
+        if addr:
+            return addr.strip()
+    except Exception:
+        pass
+    try:
+        # Fallback: 直接取 Address（可能是 Exchange DN）
+        addr = recipient.Address or ""
+        if "@" in addr:
+            return addr.strip()
+        # Exchange DN → 尝试 GetExchangeUser
+        eu = recipient.AddressEntry.GetExchangeUser()
+        if eu:
+            return (eu.PrimarySmtpAddress or "").strip()
+    except Exception:
+        pass
+    return ""
+
+
+def _resolve_sender_address(mail) -> str:
+    """解析邮件发件人 SMTP 地址"""
+    try:
+        # 优先 SenderEmailAddress（SMTP 类型直接可用）
+        if mail.SenderEmailType == "SMTP":
+            return (mail.SenderEmailAddress or "").strip()
+        # Exchange 类型 → GetExchangeUser
+        sender = mail.Sender
+        if sender:
+            eu = sender.GetExchangeUser()
+            if eu:
+                return (eu.PrimarySmtpAddress or "").strip()
+    except Exception:
+        pass
+    try:
+        addr = mail.SenderEmailAddress or ""
+        if "@" in addr:
+            return addr.strip()
+    except Exception:
+        pass
+    return ""
+
+
 def _is_amazon_email(addr: str) -> bool:
     lower = addr.lower()
-    return lower.endswith("@amazon.com") or lower.endswith(".amazon.com")
+    return lower.endswith("@amazon.com") or ".amazon.com" in lower

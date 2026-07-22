@@ -54,11 +54,6 @@ def run_preflight(base_dir: Path, config: AppConfig) -> list[str]:
             except Exception as e:
                 issues.append(f"文件损坏或被锁定：{name} — {e}")
 
-    # 4. 共享盘可达性
-    shared = Path(config.shared_drive_path)
-    if not shared.exists():
-        issues.append(f"共享盘不可达：{shared}")
-
     # 5. Output 目录写权限
     output = base_dir / config.output_dir
     output.mkdir(exist_ok=True)

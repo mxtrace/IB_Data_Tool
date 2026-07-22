@@ -1,4 +1,4 @@
-﻿"""
+"""
 startup_gui.py — 启动配置界面
 三种运行范围：self / team / custom
 """
@@ -38,12 +38,12 @@ def show_startup_dialog(config_path: Path) -> dict | None:
     # ── 窗口 ──
     root = tk.Tk()
     root.title("IB Data Tool")
-    root.geometry("440x520")
+    root.geometry("440x620")
     root.resizable(False, False)
 
     root.update_idletasks()
     x = (root.winfo_screenwidth() - 440) // 2
-    y = (root.winfo_screenheight() - 520) // 2
+    y = (root.winfo_screenheight() - 620) // 2
     root.geometry(f"+{x}+{y}")
 
     # ── Actor 显示 ──
@@ -142,6 +142,22 @@ def show_startup_dialog(config_path: Path) -> dict | None:
     ttk.Button(frame_login_mgmt, text="+ 添加", command=_add_login, width=8).pack(side="left", padx=(0, 5))
     ttk.Button(frame_login_mgmt, text="- 删除选中", command=_del_login, width=10).pack(side="left")
 
+    # ── 搜索邮箱选择 ──
+    frame_stores = ttk.LabelFrame(root, text="搜索邮箱（用于提取收件人）", padding=8)
+    frame_stores.pack(fill="x", padx=12, pady=5)
+
+    from core.outlook_helper import list_outlook_stores
+    available_stores = list_outlook_stores()
+    prev_stores = set(defaults.get("search_stores", []))
+    store_vars = {}
+    if available_stores:
+        for store_name in available_stores:
+            var = tk.BooleanVar(value=(store_name in prev_stores) if prev_stores else True)
+            store_vars[store_name] = var
+            ttk.Checkbutton(frame_stores, text=store_name, variable=var).pack(anchor="w", pady=1)
+    else:
+        ttk.Label(frame_stores, text="（未检测到邮箱账号）", foreground="gray").pack(anchor="w")
+
     # ── 批次大小 ──
     frame_batch = ttk.Frame(root, padding=(12, 5))
     frame_batch.pack(fill="x")
@@ -173,6 +189,7 @@ def show_startup_dialog(config_path: Path) -> dict | None:
             "reason": reason_map[scope],
             "selected_logins": selected,
             "batch_size": batch_var.get(),
+            "search_stores": [s for s, v in store_vars.items() if v.get()],
             "shared_drive_path": roles.get("shared_drive_path",
                 r"\\ant.amazon.com\dept-as\sha11\ILS\LCL_INBOUND_DATA_ETL\IBDATACONFIRM\DATA"),
         }
@@ -228,6 +245,7 @@ def _save_roles(roles_path: Path, roles: dict):
     """保存 roles.json（仅写 team_logins 和 shared_drive_path）"""
     data = {
         "team_logins": roles["team_logins"],
-        "shared_drive_path": roles.get("shared_drive_path", ""),
+        "search_stores": [s for s, v in store_vars.items() if v.get()],
+            "shared_drive_path": roles.get("shared_drive_path", ""),
     }
     roles_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")

@@ -70,6 +70,10 @@ def sync_to_pending_list(config: AppConfig, base_dir: Path) -> dict:
     selected_set = {login.lower().strip() for login in config.selected_logins}
     filtered = []
     for row in rows:
+        # 跳过源文件中 T列(check) 已有值的行
+        check_val = str(row[COL["check"]] or "").strip() if len(row) > COL["check"] else ""
+        if check_val:
+            continue
         bc_val = str(row[COL["bc"]] or "").strip().lower()
         if bc_val in selected_set:
             filtered.append(row)

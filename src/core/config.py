@@ -1,4 +1,4 @@
-﻿"""
+"""
 config.py — 配置管理
 读取 config.json，验证必填字段。
 """
@@ -27,6 +27,7 @@ class AppConfig:
     blurb_root: str = "IB txt"
     template_dir: str = "模板"
     output_dir: str = "Output"
+    search_stores: list[str] = field(default_factory=list)
 
 
 def load_config(config_path: Path) -> AppConfig:
@@ -47,6 +48,9 @@ def load_config(config_path: Path) -> AppConfig:
     # 允许 JSON 覆盖路径常量
     if "shared_drive_path" in raw:
         config.shared_drive_path = raw["shared_drive_path"]
+
+    if "search_stores" in raw:
+        config.search_stores = raw["search_stores"]
 
     if not config.selected_logins:
         raise ConfigError("请至少选择一个 BC Login 后再运行")
