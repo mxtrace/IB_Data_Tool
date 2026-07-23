@@ -91,6 +91,13 @@ def main():
     browser = None
 
     # ═══════════════════════════════════════════════════════════════
+    # 清理 Output 旧文件（新文件生成前自动执行）
+    # ═══════════════════════════════════════════════════════════════
+    cleaned = cleanup_output(BASE_DIR)
+    if cleaned:
+        log_info(f"已清理 Output 中 {cleaned} 个旧文件到回收站")
+
+    # ═══════════════════════════════════════════════════════════════
     # 批次循环
     # ═══════════════════════════════════════════════════════════════
     batch_ctrl = BatchController(config.batch_size)
@@ -261,10 +268,7 @@ def main():
         log_info(f"Step6: Event CSV 已生成 → {csv_path}")
         open_pending_tasks()
 
-    # Step 7: 清理 Output（打卡完成后移入回收站）
-    cleaned = cleanup_output(BASE_DIR)
-    if cleaned:
-        log_info(f"Step7: 已清理 {cleaned} 个文件到回收站")
+
 
     log_info("IB Data Tool 运行完毕")
 
