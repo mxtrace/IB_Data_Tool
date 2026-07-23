@@ -65,14 +65,10 @@ def cleanup_output(base_dir: Path) -> int:
     root.withdraw()
     confirm = messagebox.askyesno(
         "清理 Output",
-        f"请确认打卡已完成。
-
-将 {len(files)} 个文件移入回收站：
-"
-        + "
-".join(f"  • {f.name}" for f in files[:10])
-        + ("
-  ..." if len(files) > 10 else ""),
+        "请确认打卡已完成。\n\n"
+        f"将 {len(files)} 个文件移入回收站：\n"
+        + "\n".join(f"  * {f.name}" for f in files[:10])
+        + ("\n  ..." if len(files) > 10 else ""),
     )
     root.destroy()
 
