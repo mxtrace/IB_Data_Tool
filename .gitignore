@@ -29,3 +29,12 @@ __pycache__/
 
 # Excel temp files
 ~$*
+
+# ── 允许入库的共享数据文件 ──
+!roles.json
+!FC_Address.xlsx
+!Seller request list LCL.xlsx
+!dist/
+dist/*
+!dist/IB_Data_Tool.exe
+!dist/roles.json
