@@ -27,7 +27,7 @@ def generate_event_csv(records: list[TicketResult], base_dir: Path) -> Path:
         writer.writerow(["booking_id", "timestamp", "bc_login", "event_code"])
         now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         for r in records:
-            event_code = "IB_DATA_ODM" if r.status == "odm" else "IB_DATA_EMAIL_TO_SELLER"
+            event_code = "IB_DATA_EMAIL_TO_SELLER"
             writer.writerow([
                 r.al0,
                 now_str,
