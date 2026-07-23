@@ -34,7 +34,3 @@ __pycache__/
 !roles.json
 !FC_Address.xlsx
 !Seller request list LCL.xlsx
-!dist/
-dist/*
-!dist/IB_Data_Tool.exe
-!dist/roles.json
