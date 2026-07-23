@@ -140,8 +140,8 @@ def _write_parties(file_path: Path, ttype: str, iz: InputZoneData, fc: dict):
         ws["B15"] = fc.get("postal_code", "")
         ws["D15"] = fc.get("country", "")
 
-        # Notify Party (Row 17-20) ← company from IZ, address from FC (同Consignee)
-        ws["B17"] = iz.notify.company
+        # Notify Party (Row 17-20) ← company from FC_Address C列, address from FC
+        ws["B17"] = fc.get("company_name", "") or iz.notify.company
         ws["B18"] = fc.get("address", "")
         ws["B19"] = fc.get("city", "")
         ws["D19"] = fc.get("state", "")
