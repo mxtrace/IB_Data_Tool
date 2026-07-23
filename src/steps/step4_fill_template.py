@@ -1,4 +1,4 @@
-﻿"""
+"""
 step4_fill_template.py — 填充模板（数量 + 收发通）
 使用 excel_helper 安全管理文件句柄。
 """
@@ -130,7 +130,7 @@ def _write_parties(file_path: Path, ttype: str, iz: InputZoneData, fc: dict):
         ws["D10"] = iz.shipper.country
 
         # Consignee (Row 12-15) ← company from IZ, address from FC
-        company = iz.consignee.company
+        company = iz.die.company if iz.die.company else iz.consignee.company
         if company and "C/O FBA" not in company.upper():
             company = f"{company}\nC/O FBA"
         ws["B12"] = company
