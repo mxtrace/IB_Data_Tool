@@ -84,6 +84,10 @@ class BatchController:
     def get_success_records(self) -> list[TicketResult]:
         return [r for r in self.results if r.status == "success"]
 
+    def get_event_records(self) -> list[TicketResult]:
+        """获取需要打卡的记录（success + odm）"""
+        return [r for r in self.results if r.status in ("success", "odm")]
+
     def write_back_pending_list(self, base_dir: Path):
         """
         批次完成后统一回写 Pending List：

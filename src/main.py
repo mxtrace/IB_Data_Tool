@@ -24,7 +24,7 @@ from steps.step2_oc_scrape import scrape_booking_summary
 from steps.step3_template_select import select_template
 from steps.step4_fill_template import fill_template
 from steps.step5_email import generate_email
-from steps.step6_event import generate_event_csv, open_pending_tasks
+from steps.step6_event import generate_event_csv, open_pending_tasks, cleanup_output
 
 # exe 模式：exe 所在目录；开发模式：src 的上级目录
 if getattr(sys, "frozen", False):
@@ -238,7 +238,7 @@ def main():
             batch_ctrl.finish_progress()
             batch_ctrl.write_back_pending_list(BASE_DIR)
             clear_wal(BASE_DIR)
-            all_event_records.extend(batch_ctrl.get_success_records())
+            all_event_records.extend(batch_ctrl.get_event_records())
 
             log_info(f"批次完成：成功={len(batch_ctrl.get_success_records())}，"
                      f" 跳过={len([r for r in batch_ctrl.results if r.status == 'skipped'])}，"
@@ -260,6 +260,11 @@ def main():
         csv_path = generate_event_csv(all_event_records, BASE_DIR)
         log_info(f"Step6: Event CSV 已生成 → {csv_path}")
         open_pending_tasks()
+
+    # Step 7: 清理 Output（打卡完成后移入回收站）
+    cleaned = cleanup_output(BASE_DIR)
+    if cleaned:
+        log_info(f"Step7: 已清理 {cleaned} 个文件到回收站")
 
     log_info("IB Data Tool 运行完毕")
 
