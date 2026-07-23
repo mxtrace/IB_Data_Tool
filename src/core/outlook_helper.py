@@ -131,22 +131,79 @@ def display_new_mail(
     cc: str,
     attachment_path: str,
 ) -> dict:
-    """新建邮件，Display弹出"""
+    """新建邮件，Display弹出，自动追加 work 签名"""
     try:
         import win32com.client
         outlook = win32com.client.Dispatch("Outlook.Application")
         mail = outlook.CreateItem(0)
         mail.Subject = subject
         mail.To = to
-        mail.HTMLBody = html_body
         mail.CC = cc
         if attachment_path and Path(attachment_path).exists():
             mail.Attachments.Add(str(Path(attachment_path).resolve()))
+
+        # 追加 work 签名
+        signature_html = _load_work_signature()
+        if signature_html:
+            mail.HTMLBody = html_body + "<br><br>" + signature_html
+        else:
+            mail.HTMLBody = html_body
+
         mail.Display()
         return {"success": True}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
+
+
+def _load_work_signature() -> str:
+    """
+    读取 Outlook 签名目录中名为 work 的签名 HTML。
+    匹配规则：文件名以 'work' 开头（不区分大小写），后缀 .htm
+    图片相对路径替换为绝对路径。
+    """
+    import os
+    sig_dir = Path(os.environ.get("APPDATA", "")) / "Microsoft" / "Signatures"
+    if not sig_dir.exists():
+        return ""
+
+    # 查找 work 签名文件（可能是 "work (email).htm" 或 "work.htm"）
+    htm_file = None
+    for f in sig_dir.glob("*.htm"):
+        if f.stem.lower().startswith("work"):
+            htm_file = f
+            break
+
+    if not htm_file:
+        return ""
+
+    try:
+        # 尝试多种编码读取
+        for enc in ("utf-8", "gb2312", "gbk", "latin-1"):
+            try:
+                raw_html = htm_file.read_text(encoding=enc)
+                break
+            except (UnicodeDecodeError, ValueError):
+                continue
+        else:
+            return ""
+
+        # 提取 <body>...</body> 内容
+        import re
+        body_match = re.search(r"<body[^>]*>(.*)</body>", raw_html, re.DOTALL | re.IGNORECASE)
+        if not body_match:
+            return raw_html
+
+        body_content = body_match.group(1)
+
+        # 修正图片/资源的相对路径为绝对路径
+        files_dir = htm_file.stem + "_files"
+        abs_files_dir = str(sig_dir / files_dir).replace("\\", "/")
+        body_content = body_content.replace(files_dir + "/", "file:///" + abs_files_dir + "/")
+
+        return body_content
+    except Exception:
+        return ""
 
 # ── 内部辅助 ──
 
