@@ -144,6 +144,7 @@ def main():
             # ═══════════════════════════════════════════════════════
             fill_results = {}  # al0 -> fill_result
             phase2_odm = []
+            phase2_cda = []
             phase2_skipped = {}
 
             for al0, scrape_result in scrape_results.items():
@@ -156,19 +157,11 @@ def main():
                     continue
 
                 if input_zone.cda_booking:
-                    if browser is None:
-                        from core.browser_manager import BrowserManager as BM
-                        browser = BM()
-                        browser.start()
-                        browser.warmup()
-                    asi_path = scrape_result.download_asi(browser, BASE_DIR)
-                    if not asi_path:
-                        audit(al0, "step4", "skipped", "ASI下载失败")
-                        phase2_skipped[al0] = "ASI 文件下载失败"
-                        continue
-                    template_type = "ASI"
-                    template_file = asi_path
-                else:
+                    audit(al0, "step2", "cda", "")
+                    phase2_cda.append(al0)
+                    continue
+
+                # 普通订单：选模板
                     template_type = select_template(ib_row.get("pod", ""))
                     template_file = None
 
@@ -231,6 +224,12 @@ def main():
                 batch_ctrl.record_result(result)
                 append_wal(BASE_DIR, al0, "odm", "")
                 append_to_history(BASE_DIR, al0, "odm")
+
+            for al0 in phase2_cda:
+                bc_login = (batch.get_row(al0) or {}).get("bc_login", "")
+                result = TicketResult(al0, "cda", "", bc_login=bc_login)
+                batch_ctrl.record_result(result)
+                append_to_history(BASE_DIR, al0, "cda")
 
             for al0, reason in phase2_skipped.items():
                 bc_login = (batch.get_row(al0) or {}).get("bc_login", "")

@@ -119,6 +119,9 @@ def load_batch(config: AppConfig, base_dir: Path) -> BatchData:
     source_file = xlsx_files[0]
     selected_set = {login.lower().strip() for login in config.selected_logins}
 
+    # 加载 history 排除已处理的 AL0（含 CDA）
+    history_al0s = _load_history(base_dir)
+
     with open_workbook(source_file, read_only=False, data_only=True) as wb:
         ws = wb.active
 
@@ -136,6 +139,10 @@ def load_batch(config: AppConfig, base_dir: Path) -> BatchData:
 
             al0 = str(values[COL["booking_id"]] or "").strip()
             if not al0:
+                continue
+
+            # 跳过 history 中已处理的（含 CDA/ODM/success）
+            if al0 in history_al0s:
                 continue
 
             # 过滤 bc_login
