@@ -52,9 +52,6 @@ def load_config(config_path: Path) -> AppConfig:
     if "search_stores" in raw:
         config.search_stores = raw["search_stores"]
 
-    if not config.selected_logins:
-        raise ConfigError("请至少选择一个 BC Login 后再运行")
-
     if config.batch_size < 1:
         config.batch_size = 10
 

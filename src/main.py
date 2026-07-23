@@ -51,7 +51,7 @@ def main():
     # 初始化日志
     init_logger(BASE_DIR)
     log_info("=" * 50)
-    log_info(f"IB Data Tool 启动，Logins={config.selected_logins}, batch_size={config.batch_size}")
+    log_info(f"IB Data Tool 启动，batch_size={config.batch_size}")
 
     # ═══════════════════════════════════════════════════════════════
     # 启动前自检

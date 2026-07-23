@@ -112,7 +112,8 @@ def _build_cc(al0: str, ib_row: dict, config: AppConfig, base_dir: Path) -> str:
     组装 CC 字段。
     格式：{actor_login}-lclbc@amazon.com {notes}
     """
-    actor_login = config.selected_logins[0] if config.selected_logins else ""
+    import os
+    actor_login = os.environ.get("USERNAME", "").lower()
     cc_email = f"{actor_login}-lclbc@amazon.com" if actor_login else ""
 
     notes = []

@@ -67,16 +67,13 @@ def sync_to_pending_list(config: AppConfig, base_dir: Path) -> dict:
         ws = wb.active
         rows = list(ws.iter_rows(min_row=2, values_only=True))
 
-    selected_set = {login.lower().strip() for login in config.selected_logins}
     filtered = []
     for row in rows:
         # 跳过源文件中 T列(check) 已有值的行
         check_val = str(row[COL["check"]] or "").strip() if len(row) > COL["check"] else ""
         if check_val:
             continue
-        bc_val = str(row[COL["bc"]] or "").strip().lower()
-        if bc_val in selected_set:
-            filtered.append(row)
+        filtered.append(row)
 
     log_info(f"Step1: PendingList {len(rows)} 行，过滤后 {len(filtered)} 行")
 
@@ -117,8 +114,6 @@ def load_batch(config: AppConfig, base_dir: Path) -> BatchData:
         return BatchData(al0_list=[], rows={}, row_indices={})
 
     source_file = xlsx_files[0]
-    selected_set = {login.lower().strip() for login in config.selected_logins}
-
     # 加载 history 排除已处理的 AL0（含 CDA）
     history_al0s = _load_history(base_dir)
 
@@ -143,11 +138,6 @@ def load_batch(config: AppConfig, base_dir: Path) -> BatchData:
 
             # 跳过 history 中已处理的（含 CDA/ODM/success）
             if al0 in history_al0s:
-                continue
-
-            # 过滤 bc_login
-            bc_val = str(values[COL["bc"]] or "").strip().lower()
-            if bc_val not in selected_set:
                 continue
 
             total_pending += 1
