@@ -39,7 +39,7 @@ def show_startup_dialog(config_path: Path) -> dict | None:
     root = tk.Tk()
     root.title("IB Data Tool")
     root.geometry("440x600")
-    root.resizable(False, False)
+    root.resizable(False, True)
 
     root.update_idletasks()
     x = (root.winfo_screenwidth() - 440) // 2
