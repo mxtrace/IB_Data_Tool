@@ -40,6 +40,7 @@ def main():
     parser.add_argument("--single-batch", action="store_true", help="只处理一个批次后退出")
     parser.add_argument("--list-stores", action="store_true", help="列出Outlook邮箱后退出")
     parser.add_argument("--set-store", type=str, help="设置搜索邮箱名称到config.json")
+    parser.add_argument("--cleanup", action="store_true", help="清理Output旧文件")
     args, _ = parser.parse_known_args()
 
     # --list-stores: 列出邮箱后退出
@@ -50,6 +51,11 @@ def main():
     # --set-store: 写入config后退出
     if args.set_store:
         _cmd_set_store(args.set_store, BASE_DIR / "config.json")
+        return
+
+    # --cleanup: 清理Output后退出
+    if args.cleanup:
+        _cmd_cleanup(BASE_DIR)
         return
 
     # ═══════════════════════════════════════════════════════════════
@@ -116,9 +122,10 @@ def main():
     # ═══════════════════════════════════════════════════════════════
     # 清理 Output 旧文件（新文件生成前自动执行）
     # ═══════════════════════════════════════════════════════════════
-    cleaned = cleanup_output(BASE_DIR)
-    if cleaned:
-        log_info(f"已清理 Output 中 {cleaned} 个旧文件到回收站")
+    if not args.headless:
+        cleaned = cleanup_output(BASE_DIR)
+        if cleaned:
+            log_info(f"已清理 Output 中 {cleaned} 个旧文件到回收站")
 
     # ═══════════════════════════════════════════════════════════════
     # 批次循环
@@ -359,6 +366,30 @@ def _print_batch_summary(batch_ctrl, batch):
             print(f"    - {r.al0}: {r.detail}")
     print("[/BATCH_SUMMARY]")
 
+
+
+def _cmd_cleanup(base_dir):
+    """列出并清理 Output 目录旧文件"""
+    from pathlib import Path
+    output_dir = base_dir / "Output"
+    if not output_dir.exists():
+        print("[CLEANUP] Output 目录不存在，无需清理")
+        return
+    files = list(output_dir.glob("*.xlsx")) + list(output_dir.glob("*.csv"))
+    if not files:
+        print("[CLEANUP] Output 目录为空，无需清理")
+        return
+    print("[CLEANUP_FILES]")
+    for f in files:
+        print(f"  - {f.name}")
+    print(f"[/CLEANUP_FILES] 共 {len(files)} 个文件")
+    # 执行清理
+    from steps.step6_event import _send_to_recycle_bin
+    cleaned = 0
+    for f in files:
+        if _send_to_recycle_bin(str(f)):
+            cleaned += 1
+    print(f"[CLEANUP_DONE] 已清理 {cleaned} 个文件到回收站")
 
 
 def show_blocker(msg: str):
