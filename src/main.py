@@ -40,7 +40,8 @@ def main():
     parser.add_argument("--single-batch", action="store_true", help="只处理一个批次后退出")
     parser.add_argument("--list-stores", action="store_true", help="列出Outlook邮箱后退出")
     parser.add_argument("--set-store", type=str, help="设置搜索邮箱名称到config.json")
-    parser.add_argument("--cleanup", action="store_true", help="清理Output旧文件")
+    parser.add_argument("--check-output", action="store_true", help="列出Output目录文件（不删除）")
+    parser.add_argument("--cleanup", action="store_true", help="清理Output旧文件到回收站")
     args, _ = parser.parse_known_args()
 
     # --list-stores: 列出邮箱后退出
@@ -53,7 +54,12 @@ def main():
         _cmd_set_store(args.set_store, BASE_DIR / "config.json")
         return
 
-    # --cleanup: 清理Output后退出
+    # --check-output: 仅列出文件，不删除
+    if args.check_output:
+        _cmd_check_output(BASE_DIR)
+        return
+
+    # --cleanup: 执行删除
     if args.cleanup:
         _cmd_cleanup(BASE_DIR)
         return
@@ -368,22 +374,32 @@ def _print_batch_summary(batch_ctrl, batch):
 
 
 
-def _cmd_cleanup(base_dir):
-    """列出并清理 Output 目录旧文件"""
-    from pathlib import Path
+def _cmd_check_output(base_dir):
+    """仅列出 Output 目录文件（不删除）"""
     output_dir = base_dir / "Output"
     if not output_dir.exists():
-        print("[CLEANUP] Output 目录不存在，无需清理")
+        print("[OUTPUT_EMPTY]")
         return
     files = list(output_dir.glob("*.xlsx")) + list(output_dir.glob("*.csv"))
     if not files:
-        print("[CLEANUP] Output 目录为空，无需清理")
+        print("[OUTPUT_EMPTY]")
         return
-    print("[CLEANUP_FILES]")
+    print("[OUTPUT_FILES]")
     for f in files:
         print(f"  - {f.name}")
-    print(f"[/CLEANUP_FILES] 共 {len(files)} 个文件")
-    # 执行清理
+    print(f"[/OUTPUT_FILES] 共 {len(files)} 个文件")
+
+
+def _cmd_cleanup(base_dir):
+    """清理 Output 目录旧文件到回收站"""
+    output_dir = base_dir / "Output"
+    if not output_dir.exists():
+        print("[CLEANUP_DONE] 无文件需要清理")
+        return
+    files = list(output_dir.glob("*.xlsx")) + list(output_dir.glob("*.csv"))
+    if not files:
+        print("[CLEANUP_DONE] 无文件需要清理")
+        return
     from steps.step6_event import _send_to_recycle_bin
     cleaned = 0
     for f in files:
