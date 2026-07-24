@@ -1,0 +1,180 @@
+================================================================
+        IB Data Tool Headless — 完整部署指南
+================================================================
+
+概述
+----
+IB Data Tool Headless 版本通过 Aki 对话驱动，无需 GUI 操作。
+对 Aki 说 "跑IB Data" 即可开始处理。
+
+
+================================================================
+一、环境要求
+================================================================
+
+  项目          要求                说明
+  ----------    ----------------    --------------------------------
+  操作系统      Windows 10/11       —
+  Python        3.13                安装路径：C:\Program Files\Python313\
+  Git           任意版本            用于 clone 和更新
+  Outlook       桌面版              需运行中，已配置目标共享邮箱
+  Firefox       任意版本            需登录 trans-logistics-cn.amazon.com
+  Aki           已安装              —
+  Mars 工具     已安装              桌面需有 Mars_LCL_Package 目录
+
+
+================================================================
+二、部署步骤
+================================================================
+
+Step 1: Clone 项目
+------------------
+  cd ~/Desktop
+  git clone https://github.com/mxtrace/IB_Data_Tool.git
+
+
+Step 2: 运行一键部署脚本
+------------------------
+  cd IB_Data_Tool
+  powershell -ExecutionPolicy Bypass -File deploy\setup.ps1
+
+  脚本自动执行：
+    [1] 检查 Python 3.13 是否存在
+    [2] 安装 pip 依赖（requests、openpyxl、xlrd、pywin32、pyautogui）
+    [3] 切换到 headless 分支
+    [4] 安装 Aki Skill 到 ~/.aki/user_preference/akisa/skills/ib-data-tool/
+    [5] 验证模板文件、PendingList 目录是否存在
+
+
+Step 3: 验证部署
+----------------
+  & "C:\Program Files\Python313\python.exe" src/main.py --list-stores
+
+  若输出 [STORES] 列表 → 部署成功。
+
+
+================================================================
+三、无需手动拷贝
+================================================================
+
+以下文件全部在 git 中，clone 后即就绪：
+
+  文件                            用途
+  ------------------------------  ----------------------------
+  模板/AMS_ISF LCL.xlsx           AMS 邮件附件模板
+  模板/ENS LCL.xlsx               ENS 邮件附件模板
+  FC_Address.xlsx                 FC 仓库地址映射
+  Seller request list LCL.xlsx    Seller 信息
+  roles.json                      团队人员角色
+  team_logins.txt                 BC login 列表
+
+以下文件运行时自动生成，无需准备：
+
+  文件/目录       说明
+  ----------      --------------------------
+  config.json     首次 --set-store 时自动创建
+  Output/         生成的模板和 CSV
+  logs/           运行日志
+
+
+================================================================
+四、使用方式
+================================================================
+
+对 Aki 说："跑IB Data"
+-----------------------
+
+Aki 会依次引导：
+
+  +-----------------------------------------------------------+
+  | Step 0: 检查 Output 旧文件 → 询问是否清理                 |
+  | Step 1: 列出 Outlook 邮箱                                  |
+  | Step 2: 用户选择邮箱（支持多选，如输入 1,2,3）             |
+  | Step 3: 逐批处理                                           |
+  |         → 展示处理结果（成功/ODM/跳过/剩余）               |
+  |         → 询问"继续下一批？"                               |
+  | Step 4: 完成 → 提示上传 Event CSV 打卡                     |
+  +-----------------------------------------------------------+
+
+
+手动运行（不通过 Aki）
+-----------------------
+
+  cd ~/Desktop/IB_Data_Tool
+
+  # 列出邮箱
+  & "C:\Program Files\Python313\python.exe" src/main.py --list-stores
+
+  # 设置邮箱（多选逗号分隔）
+  & "C:\Program Files\Python313\python.exe" src/main.py --set-store "user@amazon.com,shared@amazon.com"
+
+  # 处理单批次
+  & "C:\Program Files\Python313\python.exe" src/main.py --headless --single-batch
+
+  # 检查/清理 Output
+  & "C:\Program Files\Python313\python.exe" src/main.py --check-output
+  & "C:\Program Files\Python313\python.exe" src/main.py --cleanup
+
+
+================================================================
+五、更新方式
+================================================================
+
+  cd ~/Desktop/IB_Data_Tool
+  git pull origin headless
+
+如有 Skill 更新，重新运行：
+  powershell -ExecutionPolicy Bypass -File deploy\setup.ps1
+
+
+================================================================
+六、常见问题
+================================================================
+
+  问题                      解决方案
+  ------------------------  ------------------------------------------------
+  OC Cookie 已过期          Firefox 打开 trans-logistics-cn.amazon.com 重新登录
+  PendingList 目录不存在    确认 Mars 工具已安装，桌面有 Mars_LCL_Package 目录
+  python 命令报错           使用完整路径 "C:\Program Files\Python313\python.exe"
+  周一首次运行失败          OC Cookie 每周一过期，先 Firefox 登录再跑
+  邮件没有弹出              检查 Outlook 是否运行中
+  ModuleNotFoundError       重新运行 setup.ps1 或手动 pip install
+
+
+================================================================
+七、架构说明
+================================================================
+
+  IB_Data_Tool/
+  ├── src/                    源代码
+  │   ├── main.py             主入口（支持 --headless --single-batch）
+  │   ├── core/               核心模块（解析器、控制器）
+  │   └── steps/              步骤模块（Step1-6）
+  ├── deploy/                 部署包
+  │   ├── setup.ps1           一键部署脚本
+  │   ├── SKILL.md            Aki Skill 定义
+  │   └── README.md           部署说明
+  ├── 模板/                   AMS/ENS 模板
+  ├── FC_Address.xlsx         FC 地址映射
+  ├── config.json             运行时配置（自动生成）
+  └── Output/                 输出目录（自动生成）
+
+
+分支策略：
+
+  分支        用途                使用者
+  ----------  ------------------  ------------------------------------------
+  master      生产版（GUI模式）   mzqing 等（git pull + python src/main.py）
+  headless    Aki 对话模式        部署 Aki Skill 的同事
+
+两个分支互不影响。
+
+
+================================================================
+八、联系人
+================================================================
+
+  工具维护：miaoyua
+  Git 仓库：https://github.com/mxtrace/IB_Data_Tool.git
+
+================================================================
