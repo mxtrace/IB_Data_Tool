@@ -162,8 +162,8 @@ def main():
                     continue
 
                 # 普通订单：选模板
-                    template_type = select_template(ib_row.get("pod", ""))
-                    template_file = None
+                template_type = select_template(ib_row.get("pod", ""))
+                template_file = None
 
                 fill_result = fill_template(
                     al0=al0,
@@ -293,7 +293,21 @@ def _show_skip_warning(al0: str, reason: str):
 
 
 if __name__ == "__main__":
-    main()
+    import traceback
+    try:
+        main()
+    except Exception as e:
+        try:
+            from core.logger import log_error
+            log_error(f"未捕获异常：{e}\n{traceback.format_exc()}")
+        except Exception:
+            pass
+        import tkinter as tk
+        from tkinter import messagebox
+        root = tk.Tk()
+        root.withdraw()
+        messagebox.showerror("IB Data Tool 崩溃", f"{e}\n\n详情见 logs/ 目录")
+        root.destroy()
 
 
 
