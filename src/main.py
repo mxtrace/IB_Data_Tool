@@ -13,7 +13,7 @@ warnings.filterwarnings("ignore", category=UserWarning, module="openpyxl")
 
 from core.config import load_config, AppConfig, ConfigError
 from core.startup_gui import show_startup_dialog
-from core.logger import init_logger, log_info, log_error, audit
+from core.logger import init_logger, log_info, log_error, log_debug, log_exception, audit
 from core.preflight import run_preflight
 from core.wal import append_wal, recover_pending_list_from_wal, clear_wal
 from core.batch_controller import BatchController, TicketResult
@@ -127,6 +127,7 @@ def main():
                     phase1_skipped[al0] = "Pending List 中无此 AL0 数据"
                     continue
 
+                log_debug(f"Phase1 查询: {al0}")
                 scrape_result = scrape_booking_summary(al0, oc_session)
                 if scrape_result.error:
                     audit(al0, "step2", "skipped", scrape_result.error)
@@ -148,6 +149,7 @@ def main():
             phase2_skipped = {}
 
             for al0, scrape_result in scrape_results.items():
+                log_debug(f"Phase2 填充: {al0}")
                 ib_row = batch.get_row(al0)
                 input_zone = scrape_result.input_zone
 
@@ -186,6 +188,7 @@ def main():
             # Phase 3: 连续弹出邮件
             # ═══════════════════════════════════════════════════════
             for al0, fill_result in fill_results.items():
+                log_debug(f"Phase3 邮件: {al0}")
                 ib_row = batch.get_row(al0)
                 input_zone = scrape_results[al0].input_zone
 
@@ -297,16 +300,27 @@ if __name__ == "__main__":
     try:
         main()
     except Exception as e:
+        tb_str = traceback.format_exc()
         try:
-            from core.logger import log_error
-            log_error(f"未捕获异常：{e}\n{traceback.format_exc()}")
+            from core.logger import log_exception
+            log_exception(f"未捕获异常：{e}")
+        except Exception:
+            pass
+        # 写入崩溃文件（日志系统可能未初始化）
+        try:
+            from pathlib import Path
+            crash_file = Path("logs/crash.log")
+            crash_file.parent.mkdir(exist_ok=True)
+            crash_file.write_text(tb_str, encoding="utf-8")
         except Exception:
             pass
         import tkinter as tk
         from tkinter import messagebox
         root = tk.Tk()
         root.withdraw()
-        messagebox.showerror("IB Data Tool 崩溃", f"{e}\n\n详情见 logs/ 目录")
+        messagebox.showerror("IB Data Tool 崩溃", f"{e}
+
+详情见 logs/ 目录")
         root.destroy()
 
 
