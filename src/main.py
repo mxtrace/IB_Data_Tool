@@ -37,7 +37,20 @@ def main():
     import argparse
     parser = argparse.ArgumentParser(description="IB Data Batch Sending Tool")
     parser.add_argument("--headless", action="store_true", help="无GUI模式，直接使用config.json")
+    parser.add_argument("--single-batch", action="store_true", help="只处理一个批次后退出")
+    parser.add_argument("--list-stores", action="store_true", help="列出Outlook邮箱后退出")
+    parser.add_argument("--set-store", type=str, help="设置搜索邮箱名称到config.json")
     args, _ = parser.parse_known_args()
+
+    # --list-stores: 列出邮箱后退出
+    if args.list_stores:
+        _cmd_list_stores()
+        return
+
+    # --set-store: 写入config后退出
+    if args.set_store:
+        _cmd_set_store(args.set_store, BASE_DIR / "config.json")
+        return
 
     # ═══════════════════════════════════════════════════════════════
     # Step 0: 启动配置
@@ -265,6 +278,10 @@ def main():
                 action = batch_ctrl.show_summary_dialog()
                 if action == "finish":
                     break
+            elif args.single_batch:
+                # 单批次模式：输出摘要后退出
+                _print_batch_summary(batch_ctrl, batch)
+                break
 
     finally:
         if browser:
@@ -283,6 +300,64 @@ def main():
 
 
     log_info("IB Data Tool 运行完毕")
+
+
+
+def _cmd_list_stores():
+    """列出 Outlook 所有邮箱 Store"""
+    try:
+        import win32com.client
+        outlook = win32com.client.Dispatch("Outlook.Application").GetNamespace("MAPI")
+        print("[STORES]")
+        for i in range(outlook.Stores.Count):
+            store = outlook.Stores.Item(i + 1)
+            print(f"  {i+1}. {store.DisplayName}")
+        print("[/STORES]")
+    except Exception as e:
+        print(f"[ERROR] 无法枚举邮箱: {e}")
+        sys.exit(1)
+
+
+def _cmd_set_store(store_name: str, config_path):
+    """将选择的邮箱写入 config.json"""
+    import json
+    try:
+        config_data = json.loads(config_path.read_text(encoding="utf-8"))
+    except Exception:
+        config_data = {}
+    config_data["search_stores"] = [store_name]
+    config_path.write_text(json.dumps(config_data, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"[OK] search_stores 已设置为: {store_name}")
+
+
+def _print_batch_summary(batch_ctrl, batch):
+    """输出结构化批次摘要供 Aki 解析"""
+    success = batch_ctrl.get_success_records()
+    odm = [r for r in batch_ctrl.results if r.status == "odm"]
+    skipped = [r for r in batch_ctrl.results if r.status == "skipped"]
+    cda = [r for r in batch_ctrl.results if r.status == "cda"]
+
+    print("[BATCH_SUMMARY]")
+    print(f"  processed: {len(batch_ctrl.results)}")
+    print(f"  success: {len(success)}")
+    print(f"  odm: {len(odm)}")
+    print(f"  skipped: {len(skipped)}")
+    print(f"  cda: {len(cda)}")
+    print(f"  remaining: {batch.total_pending - len(batch.al0_list)}")
+    if success:
+        print("  success_list:")
+        for r in success:
+            print(f"    - {r.al0}")
+    if odm:
+        print("  odm_list:")
+        for r in odm:
+            print(f"    - {r.al0}")
+    if skipped:
+        print("  skipped_list:")
+        for r in skipped:
+            print(f"    - {r.al0}: {r.detail}")
+    print("[/BATCH_SUMMARY]")
+
 
 
 def show_blocker(msg: str):

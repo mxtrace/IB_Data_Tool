@@ -24,9 +24,12 @@ def generate_event_csv(records: list[TicketResult], base_dir: Path) -> Path:
     today = datetime.now().strftime("%Y%m%d")
     csv_path = output_dir / f"event_list_{today}.csv"
 
-    with open(csv_path, "w", newline="", encoding="utf-8") as f:
+    # Append mode: write header only if file doesn't exist
+    file_exists = csv_path.exists()
+    with open(csv_path, "a", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
-        writer.writerow(["bookingID", "actualTime", "userName", "eventCode"])
+        if not file_exists:
+            writer.writerow(["bookingID", "actualTime", "userName", "eventCode"])
         now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         for r in records:
             event_code = "IB_DATA_EMAIL_TO_SELLER"
