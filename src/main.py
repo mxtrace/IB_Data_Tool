@@ -34,17 +34,27 @@ else:
 
 
 def main():
+    import argparse
+    parser = argparse.ArgumentParser(description="IB Data Batch Sending Tool")
+    parser.add_argument("--headless", action="store_true", help="无GUI模式，直接使用config.json")
+    args, _ = parser.parse_known_args()
+
     # ═══════════════════════════════════════════════════════════════
-    # Step 0: 启动配置（GUI）
+    # Step 0: 启动配置
     # ═══════════════════════════════════════════════════════════════
     config_path = BASE_DIR / "config.json"
-    gui_result = show_startup_dialog(config_path)
-    if gui_result is None:
-        return  # 用户取消
+
+    if not args.headless:
+        gui_result = show_startup_dialog(config_path)
+        if gui_result is None:
+            return  # 用户取消
 
     try:
         config = load_config(config_path)
     except ConfigError as e:
+        if args.headless:
+            print(f"[ERROR] {e}")
+            return
         show_blocker(str(e))
         return
 
@@ -251,9 +261,10 @@ def main():
                      f" 跳过={len([r for r in batch_ctrl.results if r.status == 'skipped'])}，"
                      f" ODM={len([r for r in batch_ctrl.results if r.status == 'odm'])}")
 
-            action = batch_ctrl.show_summary_dialog()
-            if action == "finish":
-                break
+            if "--headless" not in sys.argv:
+                action = batch_ctrl.show_summary_dialog()
+                if action == "finish":
+                    break
 
     finally:
         if browser:
@@ -273,8 +284,11 @@ def main():
 
 
 def show_blocker(msg: str):
-    """🔴 阻断弹窗"""
+    """🔴 阻断（headless时仅打印，否则弹窗）"""
     log_error(f"[BLOCKER] {msg}")
+    if "--headless" in sys.argv:
+        print(f"[BLOCKER] {msg}")
+        return
     import tkinter as tk
     from tkinter import messagebox
     root = tk.Tk()
@@ -284,6 +298,9 @@ def show_blocker(msg: str):
 
 
 def _show_skip_warning(al0: str, reason: str):
+    if "--headless" in sys.argv:
+        print(f"[SKIP] {al0}: {reason}")
+        return
     import tkinter as tk
     from tkinter import messagebox
     root = tk.Tk()
