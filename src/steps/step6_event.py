@@ -4,11 +4,16 @@ step6_event.py - Event CSV generation and Pending Tasks page
 from __future__ import annotations
 
 import csv
+import sys
 import webbrowser
 from datetime import datetime
 from pathlib import Path
 
 from core.batch_controller import TicketResult
+
+
+def _is_headless() -> bool:
+    return "--headless" in sys.argv
 
 
 def generate_event_csv(records: list[TicketResult], base_dir: Path) -> Path:
@@ -36,16 +41,16 @@ def generate_event_csv(records: list[TicketResult], base_dir: Path) -> Path:
 
 
 def open_pending_tasks():
-    """Open OC Pending Tasks page."""
+    """Open OC Pending Tasks page (skip in headless mode)."""
+    if _is_headless():
+        print("[INFO] Headless: skip opening Pending Tasks page")
+        return
     url = "https://trans-logistics-cn.amazon.com/aglt/appViews/app#/pending-tasks"
     webbrowser.open(url)
 
 
 def cleanup_output(base_dir: Path) -> int:
     """Move .xlsx/.csv files in Output/ to recycle bin."""
-    import tkinter as tk
-    from tkinter import messagebox
-
     output_dir = base_dir / "Output"
     if not output_dir.exists():
         return 0
@@ -54,19 +59,22 @@ def cleanup_output(base_dir: Path) -> int:
     if not files:
         return 0
 
-    root = tk.Tk()
-    root.withdraw()
-    confirm = messagebox.askyesno(
-        "Clean Output",
-        "Please confirm event upload is done.\n\n"
-        f"Move {len(files)} file(s) to recycle bin:\n"
-        + "\n".join(f"  * {f.name}" for f in files[:10])
-        + ("\n  ..." if len(files) > 10 else ""),
-    )
-    root.destroy()
-
-    if not confirm:
-        return 0
+    # Headless: auto-clean without confirmation
+    if not _is_headless():
+        import tkinter as tk
+        from tkinter import messagebox
+        root = tk.Tk()
+        root.withdraw()
+        confirm = messagebox.askyesno(
+            "Clean Output",
+            "Please confirm event upload is done.\n\n"
+            f"Move {len(files)} file(s) to recycle bin:\n"
+            + "\n".join(f"  * {f.name}" for f in files[:10])
+            + ("\n  ..." if len(files) > 10 else ""),
+        )
+        root.destroy()
+        if not confirm:
+            return 0
 
     cleaned = 0
     for f in files:
