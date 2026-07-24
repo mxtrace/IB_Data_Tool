@@ -31,14 +31,6 @@ powershell -ExecutionPolicy Bypass -File deploy\setup.ps1
 "C:\Program Files\Python313\python.exe" -m pip install requests urllib3 openpyxl xlrd pywin32 pyautogui
 ```
 
-### 文件检查
-
-以下文件不在 git 中，需从已部署机器复制：
-- `模板/AMS_ISF LCL.xlsx`
-- `模板/ENS LCL.xlsx`
-- `FC_Address.xlsx`
-- `Seller request list LCL.xlsx`
-
 ### Aki Skill 安装
 
 部署脚本会自动复制，手动方式：
