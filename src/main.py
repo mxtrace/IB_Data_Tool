@@ -44,6 +44,10 @@ def main():
     parser.add_argument("--cleanup", action="store_true", help="清理Output旧文件到回收站")
     args, _ = parser.parse_known_args()
 
+    # --single-batch implies --headless
+    if args.single_batch:
+        args.headless = True
+
     # --list-stores: 列出邮箱后退出
     if args.list_stores:
         _cmd_list_stores()
