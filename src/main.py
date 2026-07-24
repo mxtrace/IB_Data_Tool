@@ -210,8 +210,7 @@ def main():
 
                 batch_ctrl.record_result(result)
                 append_wal(BASE_DIR, al0, result.status, result.reason)
-                if result.status == "success":
-                    append_to_history(BASE_DIR, al0, result.status)
+
 
             # 记录 Phase1/2 跳过和 ODM
             for al0, reason in phase1_skipped.items():
@@ -226,7 +225,6 @@ def main():
                 result = TicketResult(al0, "odm", "", bc_login=bc_login)
                 batch_ctrl.record_result(result)
                 append_wal(BASE_DIR, al0, "odm", "")
-                append_to_history(BASE_DIR, al0, "odm")
 
             for al0 in phase2_cda:
                 bc_login = (batch.get_row(al0) or {}).get("bc_login", "")
