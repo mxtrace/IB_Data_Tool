@@ -303,10 +303,9 @@ if __name__ == "__main__":
         tb_str = traceback.format_exc()
         try:
             from core.logger import log_exception
-            log_exception(f"未捕获异常：{e}")
+            log_exception("未捕获异常")
         except Exception:
             pass
-        # 写入崩溃文件（日志系统可能未初始化）
         try:
             from pathlib import Path
             crash_file = Path("logs/crash.log")
@@ -318,12 +317,6 @@ if __name__ == "__main__":
         from tkinter import messagebox
         root = tk.Tk()
         root.withdraw()
-        messagebox.showerror("IB Data Tool 崩溃", f"{e}
-
-详情见 logs/ 目录")
+        msg = str(e) + "\n\n详情见 logs/ 目录"
+        messagebox.showerror("IB Data Tool", msg)
         root.destroy()
-
-
-
-
-
