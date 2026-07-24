@@ -319,15 +319,16 @@ def _cmd_list_stores():
 
 
 def _cmd_set_store(store_name: str, config_path):
-    """将选择的邮箱写入 config.json"""
+    """将选择的邮箱写入 config.json（支持逗号分隔多选）"""
     import json
     try:
         config_data = json.loads(config_path.read_text(encoding="utf-8"))
     except Exception:
         config_data = {}
-    config_data["search_stores"] = [store_name]
+    stores = [s.strip() for s in store_name.split(",") if s.strip()]
+    config_data["search_stores"] = stores
     config_path.write_text(json.dumps(config_data, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"[OK] search_stores 已设置为: {store_name}")
+    print(f"[OK] search_stores 已设置为: {stores}")
 
 
 def _print_batch_summary(batch_ctrl, batch):
