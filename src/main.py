@@ -266,6 +266,8 @@ def main():
     if all_event_records:
         csv_path = generate_event_csv(all_event_records, BASE_DIR)
         log_info(f"Step6: Event CSV 已生成 → {csv_path}")
+        open_pending_tasks()
+        log_info("Step6: OC Pending Tasks page opened")
 
 
 
