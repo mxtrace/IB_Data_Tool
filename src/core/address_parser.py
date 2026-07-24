@@ -9,13 +9,22 @@ from __future__ import annotations
 
 import re
 
-# 国家关键词（尾部匹配）
+# 国家关键词（尾部匹配，含国家代码）
 COUNTRIES = [
-    "China", "United States", "United Kingdom", "Germany", "Japan",
-    "Canada", "Australia", "France", "Italy", "Spain", "Netherlands",
-    "India", "South Korea", "Singapore", "Hong Kong", "Taiwan",
-    "Thailand", "Vietnam", "Indonesia", "Malaysia", "Philippines",
-    "Brazil", "Mexico", "Poland", "Czech Republic", "Sweden",
+    "China", "CN",
+    "United States", "US", "USA",
+    "United Kingdom", "UK", "GB",
+    "Germany", "DE", "Japan", "JP",
+    "Canada", "CA", "Australia", "AU",
+    "France", "FR", "Italy", "IT", "Spain", "ES",
+    "Netherlands", "NL", "India", "IN",
+    "South Korea", "KR", "Singapore", "SG",
+    "Hong Kong", "HK", "Taiwan", "TW",
+    "Thailand", "TH", "Vietnam", "VN",
+    "Indonesia", "ID", "Malaysia", "MY",
+    "Philippines", "PH", "Brazil", "BR",
+    "Mexico", "MX", "Poland", "PL",
+    "Czech Republic", "CZ", "Sweden", "SE",
 ]
 
 # US 州缩写
