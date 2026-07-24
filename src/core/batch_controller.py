@@ -50,12 +50,18 @@ class BatchController:
     def start_batch(self, batch: BatchData):
         self._current_batch = batch
         self.results = []
-        # 创建进度窗口
-        from core.progress_window import ProgressWindow
-        try:
-            self._progress_win = ProgressWindow(len(batch.al0_list))
-        except Exception:
+        # 创建进度窗口（headless 模式跳过 GUI）
+        import sys
+        if "--headless" in sys.argv:
             self._progress_win = None
+            self._headless = True
+        else:
+            from core.progress_window import ProgressWindow
+            try:
+                self._progress_win = ProgressWindow(len(batch.al0_list))
+            except Exception:
+                self._progress_win = None
+            self._headless = False
 
     def set_total_pending(self, total: int):
         """设置 Pending List 中总待处理数（首次调用时）"""
@@ -66,6 +72,9 @@ class BatchController:
         """更新进度显示"""
         if self._progress_win:
             self._progress_win.update(idx, al0)
+        elif getattr(self, "_headless", False):
+            total = len(self._current_batch.al0_list) if self._current_batch else "?"
+            print(f"[PROGRESS] {idx+1}/{total} {al0}")
 
     def set_input_zone(self, text: str):
         """显示 Input Zone 内容"""
